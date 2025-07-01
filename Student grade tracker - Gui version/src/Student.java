@@ -8,7 +8,6 @@ class Student {
         this.name = name;
         this.score = score;
 
-        // Assign grade based on score
         if (score > 95) {
             grade = "A+";
         } else if (score > 90) {
