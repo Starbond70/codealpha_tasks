@@ -4,20 +4,17 @@ import java.awt.event.*;
 import java.util.ArrayList;
 import java.io.*;
 import java.util.Scanner;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 public class Main {
-    static ArrayList<Student> studentList = new ArrayList<>(); // Store student data
-    static boolean lastActionWasReport = false; // Track if last action was 'Report'
+    static ArrayList<Student> studentList = new ArrayList<>();
+    static boolean lastActionWasReport = false;
 
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Student Grade Tracker"); // Main application window
+        JFrame frame = new JFrame("Student Grade Tracker");
         frame.setSize(600, 600);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new FlowLayout());
 
-        // Input fields and UI components
         JTextField nameField = new JTextField(20);
         JTextField scoreField = new JTextField(5);
         JButton addButton = new JButton("Add Student");
@@ -27,7 +24,6 @@ public class Main {
         JTextArea outputArea = new JTextArea(20, 45);
         outputArea.setEditable(false);
 
-        // Add components to window
         frame.add(new JLabel("Student Name:"));
         frame.add(nameField);
         frame.add(new JLabel("Score (0-100):"));
@@ -38,18 +34,15 @@ public class Main {
         frame.add(exportButton);
         frame.add(new JScrollPane(outputArea));
 
-        // Move focus from name to score on Enter
         nameField.addActionListener(e -> scoreField.requestFocusInWindow());
         scoreField.addActionListener(e -> addButton.doClick());
 
-        // Focus and select score when it gains focus
         scoreField.addFocusListener(new FocusAdapter() {
             public void focusGained(FocusEvent e) {
                 scoreField.selectAll();
             }
         });
 
-        // Add Student Button Logic
         addButton.addActionListener(e -> {
             String name = nameField.getText().trim();
             String scoreText = scoreField.getText().trim();
@@ -65,7 +58,6 @@ public class Main {
                 Student s = new Student(name, score);
                 studentList.add(s);
 
-                // Clear or append message based on previous action
                 if (lastActionWasReport) {
                     outputArea.setText("Added: " + name + " - Grade: " + s.grade + "\n");
                 } else {
@@ -82,7 +74,6 @@ public class Main {
             }
         });
 
-        // Report Button Logic
         reportButton.addActionListener(e -> {
             if (studentList.isEmpty()) {
                 outputArea.setText("No student data available.\n");
@@ -114,47 +105,44 @@ public class Main {
                     .append("\nPassing Rate: ").append(String.format("%.2f", passRate)).append("%\n");
 
             outputArea.setText(report.toString());
-            lastActionWasReport = true; // set flag
+            lastActionWasReport = true;
         });
 
-        // Export Button Logic
         exportButton.addActionListener(e -> {
             if (studentList.isEmpty()) {
                 JOptionPane.showMessageDialog(frame, "Student list is empty. Please add some students before exporting.");
                 return;
             }
 
-            try {
-                // Generate timestamp-based filename
-                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-                File file = new File("students_" + timestamp + ".csv");
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Save Student Data");
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("CSV files (*.csv)", "csv"));
 
-                // Ensure unique filename by appending counter if file exists
-                int counter = 1;
-                while (file.exists()) {
-                    file = new File("students_" + timestamp + "_" + counter + ".csv");
-                    counter++;
+            int userSelection = fileChooser.showSaveDialog(frame);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
+                String filePath = file.getAbsolutePath();
+                if (!filePath.toLowerCase().endsWith(".csv")) {
+                    file = new File(filePath + ".csv");
                 }
 
-                PrintWriter writer = new PrintWriter(file);
-                writer.println("Name,Score,Grade,Pass"); // CSV header
-                for (Student s : studentList) {
-                    // Escape commas in names to prevent CSV corruption
-                    String name = s.name.replace(",", "\\,");
-                    writer.println(name + "," + s.score + "," + s.grade + "," + s.pass);
+                try (PrintWriter writer = new PrintWriter(file)) {
+                    writer.println("Name,Score,Grade,Pass");
+                    for (Student s : studentList) {
+                        String name = s.name.replace(",", "\\,");
+                        writer.println(name + "," + s.score + "," + s.grade + "," + s.pass);
+                    }
+                    JOptionPane.showMessageDialog(frame, "Student data exported to:\n" + file.getAbsolutePath());
+                } catch (FileNotFoundException ex) {
+                    JOptionPane.showMessageDialog(frame, "Cannot write to file: " + ex.getMessage());
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(frame, "Error exporting student data: " + ex.getMessage());
                 }
-                writer.close();
-                JOptionPane.showMessageDialog(frame, "Student data exported to " + file.getName());
-            } catch (FileNotFoundException ex) {
-                JOptionPane.showMessageDialog(frame, "Cannot write to file: " + ex.getMessage());
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(frame, "Error exporting student data: " + ex.getMessage());
             }
         });
 
-        // Import Button Logic
         importButton.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser(); // File open dialog
+            JFileChooser fileChooser = new JFileChooser();
             int option = fileChooser.showOpenDialog(frame);
 
             if (option == JFileChooser.APPROVE_OPTION) {
@@ -162,14 +150,12 @@ public class Main {
                     File file = fileChooser.getSelectedFile();
                     Scanner fileScanner = new Scanner(file);
 
-                    // Check if file is empty
                     if (!fileScanner.hasNextLine()) {
                         fileScanner.close();
                         JOptionPane.showMessageDialog(frame, "Error: File is empty.");
                         return;
                     }
 
-                    // Validate file format (check header and data rows)
                     String header = fileScanner.nextLine().trim();
                     if (!header.equals("Name,Score,Grade,Pass")) {
                         fileScanner.close();
@@ -177,14 +163,13 @@ public class Main {
                         return;
                     }
 
-                    // Pre-validate all rows before importing
                     ArrayList<Student> tempList = new ArrayList<>();
                     int lineNumber = 1;
                     while (fileScanner.hasNextLine()) {
                         lineNumber++;
                         String line = fileScanner.nextLine().trim();
-                        if (line.isEmpty()) continue; // Skip empty lines
-                        String[] parts = line.split(",", -1); // -1 to include empty fields
+                        if (line.isEmpty()) continue;
+                        String[] parts = line.split(",", -1);
                         if (parts.length < 2 || parts[0].trim().isEmpty()) {
                             fileScanner.close();
                             JOptionPane.showMessageDialog(frame, "Error: Missing name or score at line " + lineNumber);
@@ -197,7 +182,7 @@ public class Main {
                                 JOptionPane.showMessageDialog(frame, "Error: Invalid score at line " + lineNumber);
                                 return;
                             }
-                            tempList.add(new Student(parts[0], score)); // Grade and pass recalculated
+                            tempList.add(new Student(parts[0], score));
                         } catch (NumberFormatException ex) {
                             fileScanner.close();
                             JOptionPane.showMessageDialog(frame, "Error: Invalid score format at line " + lineNumber);
@@ -206,10 +191,8 @@ public class Main {
                     }
                     fileScanner.close();
 
-                    // If validation passes, update studentList
-                    studentList.clear();
                     studentList.addAll(tempList);
-                    outputArea.setText("Successfully imported " + studentList.size() + " students.\n");
+                    outputArea.setText("Successfully imported " + tempList.size() + " students.\n");
                     lastActionWasReport = false;
 
                 } catch (FileNotFoundException ex) {
@@ -220,6 +203,6 @@ public class Main {
             }
         });
 
-        frame.setVisible(true); // Show the GUI
+        frame.setVisible(true);
     }
 }
